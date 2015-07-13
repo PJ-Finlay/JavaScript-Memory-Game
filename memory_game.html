@@ -1,0 +1,181 @@
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<body id="body">
+    <br>
+    <br>
+    <div id="game"></div>
+</body>
+
+
+
+
+
+
+
+
+
+
+<script>
+    /*****Config*****/
+    var gridSize = 4; //Number of grid spaces only acceptable values 2,4,6 
+    var totalSize = 700; //Total size in pixels
+    var gameDiv = document.getElementById("game"); //The div that the memory game will be created in 
+    var guessDelay = 500; //Delay in milliseconds between making gues and recieving feedback
+    var numberOfImages = 6; //Number of images to be put on tiles in images/ with naming convention 1.png,2.png,3.png,...
+    /****************/
+
+    var array = new Array(gridSize); //2D array of strings holding urls to image in corresponding spot
+    for (var i = 0; i < gridSize; i++) {
+        array[i] = new Array(gridSize);
+    }
+    var uncovered = new Array(gridSize); //Boolean array of spaces that have been uncovered
+    for (var i = 0; i < gridSize; i++) {
+        uncovered[i] = new Array(gridSize);
+        for (var x = 0; x < gridSize; x++) {
+            uncovered[i][x] = false;
+        }
+    }
+    var currentSelection = ""; //Id of current selection
+    createGrid();
+    createArray();
+    var elementsCanBeClicked = true; //Makes sure selections cannot be made while guessDelay is going on
+    $("button").click(function () { //Listen for click of any button
+        if (elementsCanBeClicked)
+            handleClick(this.id);
+    });
+
+
+
+    function createGrid() { //Creates the grid within the gameDiv Element
+        var bodyInner = "";
+        bodyInner += '<div class="container" style="height:' + totalSize.toString() + 'px;width:' + totalSize.toString() + 'px;">';
+        for (var r = 0; r < gridSize; r++) { //Cycle through each row
+            bodyInner += '<div class="row">';
+            for (var c = 0; c < gridSize; c++) { //Cycle through each column
+                bodyInner += '<div class="col-xs-' + (Math.floor(12 / gridSize)).toString() + '" style="height:' + (totalSize / gridSize).toString() + ';padding:0px">';
+                bodyInner += '<button id="' + r.toString() + '-' + c.toString() + '" style="width:100%;height:100%;"></button>';
+                bodyInner += '</div>';
+            }
+            bodyInner += '</div>';
+        }
+        bodyInner += '</div>';
+        gameDiv.innerHTML = bodyInner;
+        clearBoard();
+    }
+
+    function createArray() { //Populates array with links to images
+        for (var r = 0; r < gridSize; r++) { //Fill the array with empty strings
+            for (var c = 0; c < gridSize; c++) {
+                array[r][c] = "";
+            }
+        }
+        var lastChoice = ""; //Remembers previous choice and uses it again
+        var squaresFilled = 0; //Number of squares filled
+        var numberOfPlacements = new Array(numberOfImages); //Number of pairs on each image type that have been placed to equally distribute images
+        for (var i = 0; i < numberOfImages; i++) {
+            numberOfPlacements[i] = 0;
+        }
+        while (squaresFilled < gridSize * gridSize) {
+            var r = Math.floor(Math.random() * gridSize); //Random row and column
+            var c = Math.floor(Math.random() * gridSize);
+            if (array[r][c] == "") {
+                if (lastChoice == "") { //If there is no previous choice
+                    var imageChoice;
+                    do { //Make sure each image isn't placed too often
+                        imageChoice = Math.ceil(Math.random() * numberOfImages);
+
+                    } while (numberOfPlacements[imageChoice - 1] >= Math.ceil((gridSize * gridSize * 0.5) / numberOfImages))
+
+                    lastChoice = imageChoice.toString() + ".png";
+                    array[r][c] = lastChoice;
+                    numberOfPlacements[imageChoice - 1] = numberOfPlacements[imageChoice - 1] + 1;
+                } else { //If there was a previous choice
+                    array[r][c] = lastChoice;
+                    lastChoice = "";
+                }
+                squaresFilled++;
+            }
+        }
+    }
+
+    function handleClick(id) { //Handles a button being clicked
+        if (!uncovered[rowFromId(id)][columnFromId(id)]) { //Ignores clicks on already clicked elements
+            var row = rowFromId(id);
+            var column = columnFromId(id);
+            if (document.getElementById(id).innerHTML == "" && id != currentSelection) { //If this item has not already been revealed
+                if (currentSelection == "") { //If there is no current selection
+                    currentSelection = id;
+                    revealTile(id);
+                } else { //A tile is already selected
+                    revealTile(id);
+                    if (array[rowFromId(currentSelection)][columnFromId(currentSelection)] == array[rowFromId(id)][columnFromId(id)]) { //Correct Guess
+                        elementsCanBeClicked = false;
+                        window.setTimeout(correctGuess, guessDelay);
+                        uncovered[rowFromId(id)][columnFromId(id)] = true;
+                        uncovered[rowFromId(currentSelection)][columnFromId(currentSelection)] = true;
+                    } else {
+                        elementsCanBeClicked = false;
+                        window.setTimeout(incorrectGuess, guessDelay, id);
+                    }
+                    checkWin();
+                }
+            }
+        }
+    }
+
+    function clearTile(id) { //Clears a tile from an id
+        document.getElementById(id).style.backgroundImage = "";
+        document.getElementById(id).style.backgroundSize = "100% 100%";
+        document.getElementById(id).style.backgroundRepeat = "no-repeat";
+    }
+
+    function revealTile(id) { //Reveals a tile from an id
+        document.getElementById(id).style.backgroundImage = "url('images/" + array[rowFromId(id)][columnFromId(id)] + "')";
+        document.getElementById(id).style.backgroundSize = "100% 100%";
+        document.getElementById(id).style.backgroundRepeat = "no-repeat";
+    }
+
+    function clearBoard() { //Clears the entire board
+        for (var r = 0; r < gridSize; r++) { //Cycle through each row
+            for (var c = 0; c < gridSize; c++) { //Cycle through each column
+                clearTile(r.toString() + "-" + c.toString());
+                uncovered[r][c] = false;
+            }
+        }
+    }
+
+    function rowFromId(id) { //Gets the row number from an id
+        return id[0];
+    }
+
+    function columnFromId(id) { //Gets the column number from an id
+        return id[2];
+    }
+
+    function correctGuess() { //Handles a correct Guess
+        elementsCanBeClicked = true;
+        currentSelection = "";
+    }
+
+    function incorrectGuess(id) { //Handels an incorrect guess
+        elementsCanBeClicked = true;
+        clearTile(currentSelection);
+        currentSelection = "";
+        clearTile(id);
+    }
+
+    function checkWin() { //Checks to see if the player has won and deals with it if they have
+        for (var r = 0; r < gridSize; r++) { //Cycle through each row
+            for (var c = 0; c < gridSize; c++) { //Cycle through each column
+                if (!uncovered[r][c]) return;
+            }
+        }
+        gameWon();
+    }
+
+    function gameWon() { //Called if the player wins
+        alert("Game Won");
+        clearBoard();
+    }
+</script>
